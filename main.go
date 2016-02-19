@@ -32,7 +32,7 @@ func usage() {
 func main() {
 	flag.Usage = usage
 	flag.Parse()
-	http.HandleFunc("/diff", diff)
+	http.HandleFunc("/tags-diff", diff)
 
 	fs := http.FileServer(http.Dir(*staticPath))
 	http.Handle("/static/", http.StripPrefix("/static/", fs))
@@ -75,7 +75,7 @@ var tmpl = template.Must(template.New("tmpl").Parse(`
 		color: darkgreen;
 	}
 	</style>
-	<form method="post" action="/diff">
+	<form method="post" action="/tags-diff">
 		<label for="old"><strong>Old Tags</strong></label>
 		<textarea id="old" name="old" cols="60" rows="6">{{ .Old }}</textarea>
 		<label for="new"><strong>New Tags</strong></label>
