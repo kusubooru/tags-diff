@@ -1,0 +1,96 @@
+package main
+
+import (
+	"flag"
+	"fmt"
+	"html/template"
+	"log"
+	"net/http"
+	"os"
+
+	"github.com/kusubooru/tags-diff/tags"
+)
+
+var (
+	httpAddr   = flag.String("http", "localhost:8080", "HTTP listen address")
+	staticPath = flag.String("static", "static/", "path to static files")
+)
+
+const description = `Usage: tags-diff [options]
+  A small utility that allows to find the differences between old tags and new
+  tags which can be entered through a web interface.
+
+Options:
+`
+
+func usage() {
+	fmt.Fprintf(os.Stderr, description)
+	flag.PrintDefaults()
+	fmt.Fprintf(os.Stderr, "\n")
+}
+
+func main() {
+	flag.Usage = usage
+	flag.Parse()
+	http.HandleFunc("/diff", diff)
+
+	fs := http.FileServer(http.Dir(*staticPath))
+	http.Handle("/static/", http.StripPrefix("/static/", fs))
+	log.Fatal(http.ListenAndServe(*httpAddr, nil))
+}
+
+func diff(w http.ResponseWriter, r *http.Request) {
+	old := r.PostFormValue("old")
+	new := r.PostFormValue("new")
+	removed, added := tags.DiffFields(old, new)
+
+	data := struct {
+		Old     string
+		New     string
+		Removed []string
+		Added   []string
+	}{old, new, removed, added}
+
+	err := tmpl.Execute(w, data)
+	if err != nil {
+		log.Print(err)
+	}
+}
+
+// tmpl is the HTML template that drives the user interface.
+var tmpl = template.Must(template.New("tmpl").Parse(`
+<!DOCTYPE html><html><body>
+	<style>
+	ul,li {
+	    list-style-type: none;
+	}
+	input, textarea {
+		margin-bottom: 5px;
+		display: block;
+	}
+	.removed {
+		color: darkred;
+	}
+	.added {
+		color: darkgreen;
+	}
+	</style>
+	<form method="post" action="/diff">
+		<label for="old"><strong>Old Tags</strong></label>
+		<textarea id="old" name="old" cols="60" rows="6">{{ .Old }}</textarea>
+		<label for="new"><strong>New Tags</strong></label>
+		<textarea id="new" name="new" cols="60" rows="6">{{ .New }}</textarea>
+		<input type="submit">
+	</form>
+	<div id="diff">
+	<samp>
+	{{ range $r := .Removed }}
+		<li><strong class="removed">---</strong> {{ $r }}</li>
+	{{ end }}
+	{{ range $a := .Added }}
+		<li><strong class="added">+++</strong> {{ $a }}</li>
+	{{ end }}
+	</samp>
+	</div>
+</body></html>
+`))
