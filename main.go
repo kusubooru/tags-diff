@@ -80,7 +80,7 @@ var tmpl = template.Must(template.New("tmpl").Parse(`
 		<textarea id="old" name="old" cols="60" rows="6">{{ .Old }}</textarea>
 		<label for="new"><strong>New Tags</strong></label>
 		<textarea id="new" name="new" cols="60" rows="6">{{ .New }}</textarea>
-		<input type="submit">
+		<input type="submit" value="Compare">
 	</form>
 	<div id="diff">
 	<samp>
