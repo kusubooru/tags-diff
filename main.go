@@ -14,6 +14,10 @@ import (
 var (
 	httpAddr   = flag.String("http", "localhost:8080", "HTTP listen address")
 	staticPath = flag.String("static", "static/", "path to static files")
+	certFile   = flag.String("tlscert", "", "TLS public key in PEM format.  Must be used together with -tlskey")
+	keyFile    = flag.String("tlskey", "", "TLS private key in PEM format.  Must be used together with -tlscert")
+	// Set after flag parsing based on certFile & keyFile.
+	useTLS bool
 )
 
 const description = `Usage: tags-diff [options]
@@ -32,11 +36,22 @@ func usage() {
 func main() {
 	flag.Usage = usage
 	flag.Parse()
+	useTLS = *certFile != "" && *keyFile != ""
+
 	http.HandleFunc("/tags-diff", diff)
 
 	fs := http.FileServer(http.Dir(*staticPath))
 	http.Handle("/static/", http.StripPrefix("/static/", fs))
-	log.Fatal(http.ListenAndServe(*httpAddr, nil))
+
+	if useTLS {
+		if err := http.ListenAndServeTLS(*httpAddr, *certFile, *keyFile, nil); err != nil {
+			log.Fatalf("Could not start listening (TLS) on %v: %v", *httpAddr, err)
+		}
+	} else {
+		if err := http.ListenAndServe(*httpAddr, nil); err != nil {
+			log.Fatalf("Could not start listening on %v: %v", *httpAddr, err)
+		}
+	}
 }
 
 func diff(w http.ResponseWriter, r *http.Request) {
